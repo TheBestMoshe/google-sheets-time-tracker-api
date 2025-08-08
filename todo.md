@@ -3,19 +3,19 @@
 ## Project Setup & Configuration
 
 ### 1. Initialize Project
-- [ ] Create new Bun project with TypeScript
+- [x] Create new Bun project with TypeScript
   ```bash
   bun init
   ```
-- [ ] Install required dependencies:
-  - [ ] `@google-cloud/local-auth` or `google-auth-library`
-  - [ ] `googleapis` (for Google Sheets API v4)
-  - [ ] `@types/node` (TypeScript types)
-  - [ ] Optional: `zod` for request validation
-  - [ ] Optional: `winston` or `pino` for logging
+- [x] Install required dependencies:
+  - [x] `@google-cloud/local-auth` or `google-auth-library`
+  - [x] `googleapis` (for Google Sheets API v4)
+  - [x] `@types/node` (TypeScript types)
+  - [x] Optional: `zod` for request validation
+  - [x] Optional: `winston` or `pino` for logging
 
 ### 2. Project Structure
-- [ ] Create the following directory structure:
+- [x] Create the following directory structure:
   ```
   /
   ├── src/
@@ -39,75 +39,75 @@
 ## Core Implementation Tasks
 
 ### 3. Google Sheets Integration Service
-- [ ] Create GoogleSheetsService class with methods:
-  - [ ] `authenticate()` - Initialize Google Sheets API with service account
-  - [ ] `getSpreadsheet(sheetId: string)` - Fetch spreadsheet metadata
-  - [ ] `getWorksheets(sheetId: string)` - List all worksheets
-  - [ ] `createWorksheet(sheetId: string, title: string)` - Create new worksheet
-  - [ ] `getWorksheetData(sheetId: string, worksheetName: string)` - Read worksheet data
-  - [ ] `appendRow(sheetId: string, worksheetName: string, values: any[])` - Add new row
-  - [ ] `updateCell(sheetId: string, worksheetName: string, cell: string, value: any)` - Update specific cell
-  - [ ] `batchUpdate(sheetId: string, requests: any[])` - Batch operations
+- [x] Create GoogleSheetsService class with methods:
+  - [x] `authenticate()` - Initialize Google Sheets API with service account
+  - [x] `getSpreadsheet(sheetId: string)` - Fetch spreadsheet metadata
+  - [x] `getWorksheets(sheetId: string)` - List all worksheets
+  - [x] `createWorksheet(sheetId: string, title: string)` - Create new worksheet
+  - [x] `getWorksheetData(sheetId: string, worksheetName: string)` - Read worksheet data
+  - [x] `appendRow(sheetId: string, worksheetName: string, values: any[])` - Add new row
+  - [x] `updateCell(sheetId: string, worksheetName: string, cell: string, value: any)` - Update specific cell
+  - [x] `batchUpdate(sheetId: string, requests: any[])` - Batch operations
 
 ### 4. Timer Service Implementation
-- [ ] Create TimerService class with methods:
-  - [ ] `startTimer(sheetId: string, description?: string)`
-    - [ ] Check if sheet exists, create if needed
-    - [ ] Check if current sheet is invoiced
-    - [ ] Check for running timer
-    - [ ] Add new timer entry
-  - [ ] `stopTimer(sheetId: string)`
-    - [ ] Find active timer
-    - [ ] Update end time
+- [x] Create TimerService class with methods:
+  - [x] `startTimer(sheetId: string, description?: string)`
+    - [x] Check if sheet exists, create if needed
+    - [x] Check if current sheet is invoiced
+    - [x] Check for running timer
+    - [x] Add new timer entry
+  - [x] `stopTimer(sheetId: string)`
+    - [x] Find active timer
+    - [x] Update end time
     - [ ] Return duration
-  - [ ] `getCurrentSheet(sheetId: string)`
-    - [ ] Find most recent non-invoiced sheet
-    - [ ] Return sheet name or null
-  - [ ] `createNewTimeSheet(sheetId: string)`
-    - [ ] Generate sheet name (current date)
-    - [ ] Create worksheet with proper structure
-    - [ ] Add formulas and headers
-  - [ ] `isTimerRunning(sheetId: string, worksheetName: string)`
-    - [ ] Check last row for missing end time
-  - [ ] `getConfig(sheetId: string)`
-    - [ ] Read config worksheet
+  - [x] `getCurrentSheet(sheetId: string)`
+    - [x] Find most recent non-invoiced sheet
+    - [x] Return sheet name or null
+  - [x] `createNewTimeSheet(sheetId: string)`
+    - [x] Generate sheet name (current date)
+    - [x] Create worksheet with proper structure
+    - [x] Add formulas and headers
+  - [x] `isTimerRunning(sheetId: string, worksheetName: string)`
+    - [x] Check last row for missing end time
+  - [x] `getConfig(sheetId: string)`
+    - [x] Read config worksheet
     - [ ] Cache configuration values
 
 ### 5. Worksheet Structure Setup
-- [ ] Implement `setupNewWorksheet()` function:
-  - [ ] Add "Invoiced" checkbox in cell A1
-  - [ ] Add "Total Hours:" label in A2, formula `=SUM(D6:D)` in B2
-  - [ ] Add "Total Billable:" label in A3, formula `=SUM(E6:E)` in B3
-  - [ ] Add headers in row 5: "Date", "Start", "End", "Total Time", "Billable Amount"
+- [x] Implement `setupNewWorksheet()` function:
+  - [x] Add "Invoiced" checkbox in cell A1
+  - [x] Add "Total Hours:" label in A2, formula `=SUM(D6:D)` in B2
+  - [x] Add "Total Billable:" label in A3, formula `=SUM(E6:E)` in B3
+  - [x] Add headers in row 5: "Date", "Start", "End", "Total Time", "Billable Amount"
   - [ ] Format columns appropriately (date, time, duration, currency)
   - [ ] Set column widths
 
 ### 6. API Endpoints
-- [ ] Implement `POST /timer/start`:
+- [x] Implement `POST /timer/start`:
   ```typescript
   interface StartRequest {
     sheetId: string;
     description?: string;
   }
   ```
-  - [ ] Validate request body
-  - [ ] Call TimerService.startTimer()
-  - [ ] Handle all edge cases
-  - [ ] Return appropriate response
+  - [x] Validate request body
+  - [x] Call TimerService.startTimer()
+  - [x] Handle all edge cases
+  - [x] Return appropriate response
 
-- [ ] Implement `POST /timer/stop`:
+- [x] Implement `POST /timer/stop`:
   ```typescript
   interface StopRequest {
     sheetId: string;
   }
   ```
-  - [ ] Validate request body
-  - [ ] Call TimerService.stopTimer()
-  - [ ] Handle all edge cases
-  - [ ] Return appropriate response
+  - [x] Validate request body
+  - [x] Call TimerService.stopTimer()
+  - [x] Handle all edge cases
+  - [x] Return appropriate response
 
-- [ ] Implement `GET /health`:
-  - [ ] Return service status
+- [x] Implement `GET /health`:
+  - [x] Return service status
   - [ ] Check Google Sheets API connectivity
 
 ### 7. Formula Implementation
@@ -133,16 +133,16 @@
   - [ ] `PORT` (default: 3000)
   - [ ] `NODE_ENV` (development/production)
 - [ ] Create config validation on startup
-- [ ] Add `.env.example` with all required variables
+- [x] Add `.env.example` with all required variables
 
 ## Testing
 
 ### 10. Unit Tests
 - [ ] Test GoogleSheetsService methods
-- [ ] Test TimerService business logic
-- [ ] Test error handling scenarios
+- [x] Test TimerService business logic
+- [x] Test error handling scenarios
 - [ ] Test formula generation
-- [ ] Mock Google Sheets API calls
+- [x] Mock Google Sheets API calls
 
 ### 11. Integration Tests
 - [ ] Test full timer start/stop flow
@@ -153,7 +153,7 @@
 ## Docker & Deployment
 
 ### 12. Dockerization
-- [ ] Create Dockerfile:
+- [x] Create Dockerfile:
   ```dockerfile
   FROM oven/bun:latest
   WORKDIR /app
@@ -163,7 +163,7 @@
   EXPOSE 3000
   CMD ["bun", "run", "src/index.ts"]
   ```
-- [ ] Create docker-compose.yml for local development
+- [x] Create docker-compose.yml for local development
 - [ ] Add .dockerignore file
 - [ ] Test container builds and runs correctly
 
@@ -178,11 +178,11 @@
 ## Documentation
 
 ### 14. API Documentation
-- [ ] Create README.md with:
-  - [ ] Setup instructions
-  - [ ] API endpoint documentation
-  - [ ] Google Service Account setup guide
-  - [ ] Docker deployment instructions
+- [x] Create README.md with:
+  - [x] Setup instructions
+  - [x] API endpoint documentation
+  - [x] Google Service Account setup guide
+  - [x] Docker deployment instructions
 - [ ] Add inline code comments
 - [ ] Create example requests (curl/Postman collection)
 
