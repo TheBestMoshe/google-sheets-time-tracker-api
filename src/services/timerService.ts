@@ -11,9 +11,12 @@ export class TimerService {
     }
 
     async startTimer(sheetId: string, description?: string) {
+        const config = await this.getConfig(sheetId);
+        const timezone = config['Timezone'] || 'UTC';
+
         let currentSheet = await this.getCurrentSheet(sheetId);
         if (!currentSheet) {
-            currentSheet = await this.createNewTimeSheet(sheetId);
+            currentSheet = await this.createNewTimeSheet(sheetId, timezone);
         }
 
         const timerRunning = await this.isTimerRunning(sheetId, currentSheet);
@@ -21,9 +24,9 @@ export class TimerService {
             throw new TimerAlreadyRunningError();
         }
 
-        const now = new Date();
+        const now = this.getDateInTimezone(new Date(), timezone);
         const date = now.toISOString().split('T')[0];
-        const time = now.toTimeString().split(' ')[0];
+        const time = this.formatTime12Hour(now);
         const row = [date, time]; // Date, Start
 
         await this.googleSheetsService.appendRow(sheetId, currentSheet, row);
@@ -35,7 +38,10 @@ export class TimerService {
         };
     }
 
-    async stopTimer(sheetId: string, endTime = new Date()) {
+    async stopTimer(sheetId: string, endTime?: Date) {
+        const config = await this.getConfig(sheetId);
+        const timezone = config['Timezone'] || 'UTC';
+
         const currentSheet = await this.getCurrentSheet(sheetId);
         if (!currentSheet) {
             throw new NoActiveTimerError();
@@ -46,17 +52,16 @@ export class TimerService {
             throw new NoActiveTimerError();
         }
 
-        const endTimeString = endTime.toTimeString().split(' ')[0];
+        const actualEndTime = endTime || new Date();
+        const endTimeInTimezone = this.getDateInTimezone(actualEndTime, timezone);
+        const endTimeString = this.formatTime12Hour(endTimeInTimezone);
         const cell = `C${activeTimer.index}`;
 
         await this.googleSheetsService.updateCell(sheetId, currentSheet, cell, endTimeString);
 
         const startTime = activeTimer.row[1];
-        const [startHours, startMinutes, startSeconds] = startTime.split(':').map(Number);
-        const [endHours, endMinutes, endSeconds] = endTimeString.split(':').map(Number);
-
-        const startDate = new Date(0, 0, 0, startHours, startMinutes, startSeconds);
-        const endDate = new Date(0, 0, 0, endHours, endMinutes, endSeconds);
+        const startDate = this.parse12HourTime(startTime);
+        const endDate = this.parse12HourTime(endTimeString);
         const durationMs = endDate.getTime() - startDate.getTime();
 
         const seconds = Math.floor((durationMs / 1000) % 60);
@@ -71,7 +76,7 @@ export class TimerService {
 
         return {
             sheet: currentSheet,
-            end: endTime,
+            end: endTimeInTimezone,
             duration,
         };
     }
@@ -82,16 +87,22 @@ export class TimerService {
             return null;
         }
 
+        // Only check the last row
         const lastRowIndex = data.length - 1;
         const lastRow = data[lastRowIndex];
+        if (!lastRow) {
+            return null; // Handle undefined rows
+        }
+
         const hasStartTime = lastRow[1] && lastRow[1] !== '';
         const hasEndTime = lastRow[2] && lastRow[2] !== '';
 
         if (hasStartTime && !hasEndTime) {
+            // Add 6 to the index to account for the offset (data starts at row 6)
             return { row: lastRow, index: lastRowIndex + 6 };
         }
 
-        return null;
+        return null; // No active timer found
     }
 
     async getCurrentSheet(sheetId: string): Promise<string | null> {
@@ -111,9 +122,21 @@ export class TimerService {
         return null;
     }
 
-    async createNewTimeSheet(sheetId: string): Promise<string> {
-        const sheetName = new Date().toISOString().split('T')[0];
+    async createNewTimeSheet(sheetId: string, timezone?: string): Promise<string> {
+        const now = this.getDateInTimezone(new Date(), timezone);
+        const sheetName = now.toISOString().split('T')[0];
+        if (!sheetName) {
+            throw new Error('Failed to generate sheet name.');
+        }
+
+        // Ensure Config sheet exists before creating new time sheet
+        await this.ensureConfigSheetExists(sheetId);
+
         const newSheet = await this.googleSheetsService.createWorksheet(sheetId, sheetName);
+        if (!newSheet) {
+            throw new Error('Failed to create new sheet.');
+        }
+
         const newSheetId = newSheet.sheetId;
 
         const requests = [
@@ -180,7 +203,7 @@ export class TimerService {
             {
                 repeatCell: {
                     range: { sheetId: newSheetId, startColumnIndex: 1, endColumnIndex: 3 },
-                    cell: { userEnteredFormat: { numberFormat: { type: 'TIME', pattern: 'hh:mm:ss' } } },
+                    cell: { userEnteredFormat: { numberFormat: { type: 'TIME', pattern: 'h:mm:ss AM/PM' } } },
                     fields: 'userEnteredFormat.numberFormat',
                 },
             },
@@ -205,7 +228,7 @@ export class TimerService {
                         {
                             values: [
                                 { userEnteredValue: { formulaValue: '=IF(C6<>"", C6-B6, "")' } },
-                                { userEnteredValue: { formulaValue: '=IF(D6<>"", D6*24*Config!$B$2, "")' } },
+                                { userEnteredValue: { formulaValue: '=IF(D6<>"", D6*24*Config!$B$1, "")' } },
                             ],
                         },
                     ],
@@ -226,6 +249,10 @@ export class TimerService {
         }
 
         const lastRow = data[data.length - 1];
+        if (!lastRow) {
+            return false; // Handle undefined rows
+        }
+
         // A timer is running if there's a start time (column B) but no end time (column C)
         const hasStartTime = lastRow[1] && lastRow[1] !== '';
         const hasEndTime = lastRow[2] && lastRow[2] !== '';
@@ -239,7 +266,18 @@ export class TimerService {
             return cached.config;
         }
 
-        const data = await this.googleSheetsService.getWorksheetData(sheetId, 'Config', 'A1:B10');
+        let data;
+        try {
+            data = await this.googleSheetsService.getWorksheetData(sheetId, 'Config', 'A1:B10');
+        } catch (error) {
+            // If Config sheet doesn't exist, create it with default values
+            await this.createConfigSheet(sheetId);
+            // Return default config
+            const defaultConfig = { 'Hourly Rate': '100', 'Timezone': 'UTC' };
+            this.configCache[sheetId] = { config: defaultConfig, timestamp: Date.now() };
+            return defaultConfig;
+        }
+
         if (!data) {
             throw new Error('Config sheet not found or is empty.');
         }
@@ -254,5 +292,130 @@ export class TimerService {
         this.configCache[sheetId] = { config, timestamp: Date.now() };
 
         return config;
+    }
+
+    private async createConfigSheet(sheetId: string): Promise<void> {
+        // Create the Config worksheet
+        const configSheet = await this.googleSheetsService.createWorksheet(sheetId, 'Config');
+        if (!configSheet) {
+            throw new Error('Failed to create Config worksheet.');
+        }
+
+        const configSheetId = configSheet.sheetId;
+
+        const requests = [
+            // Add headers and default values
+            {
+                updateCells: {
+                    rows: [
+                        { values: [
+                            { userEnteredValue: { stringValue: 'Hourly Rate' } },
+                            { userEnteredValue: { numberValue: 100 } }
+                        ] },
+                        { values: [
+                            { userEnteredValue: { stringValue: 'Timezone' } },
+                            { userEnteredValue: { stringValue: 'UTC' } }
+                        ] }
+                    ],
+                    fields: 'userEnteredValue',
+                    start: { sheetId: configSheetId, rowIndex: 0, columnIndex: 0 },
+                },
+            },
+            // Format column B as currency
+            {
+                repeatCell: {
+                    range: { sheetId: configSheetId, startColumnIndex: 1, endColumnIndex: 2 },
+                    cell: { userEnteredFormat: { numberFormat: { type: 'CURRENCY', pattern: '$#,##0.00' } } },
+                    fields: 'userEnteredFormat.numberFormat',
+                },
+            },
+            // Set column widths
+            {
+                updateDimensionProperties: {
+                    range: {
+                        sheetId: configSheetId,
+                        dimension: 'COLUMNS',
+                        startIndex: 0,
+                        endIndex: 2,
+                    },
+                    properties: {
+                        pixelSize: 120,
+                    },
+                    fields: 'pixelSize',
+                },
+            },
+        ];
+
+        await this.googleSheetsService.batchUpdate(sheetId, requests);
+    }
+
+    private async ensureConfigSheetExists(sheetId: string): Promise<void> {
+        try {
+            // Check if Config sheet exists by trying to get its worksheets
+            const worksheets = await this.googleSheetsService.getWorksheets(sheetId);
+            const configExists = worksheets.some(name => name === 'Config');
+            
+            if (!configExists) {
+                await this.createConfigSheet(sheetId);
+            }
+        } catch (error) {
+            // If we can't check worksheets, try to create Config sheet anyway
+            await this.createConfigSheet(sheetId);
+        }
+    }
+
+    private getDateInTimezone(date: Date, timezone?: string): Date {
+        if (!timezone || timezone === 'UTC') {
+            return date;
+        }
+
+        try {
+            // Get the date/time string in the target timezone
+            const timeInTimezone = date.toLocaleString("en-CA", { 
+                timeZone: timezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            
+            // Parse the timezone-adjusted time back to a Date object
+            // Format will be "YYYY-MM-DD, HH:mm:ss"
+            const [datePart, timePart] = timeInTimezone.split(', ');
+            const [year, month, day] = datePart.split('-').map(Number);
+            const [hour, minute, second] = timePart.split(':').map(Number);
+            
+            return new Date(year, month - 1, day, hour, minute, second);
+        } catch (error) {
+            // Fallback to original date if timezone conversion fails
+            return date;
+        }
+    }
+
+    private formatTime12Hour(date: Date): string {
+        return date.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+    }
+
+    private parse12HourTime(timeString: string): Date {
+        // Parse 12-hour format time like "12:23:45 PM"
+        const [timePart, period] = timeString.split(' ');
+        const [hours, minutes, seconds] = timePart.split(':').map(Number);
+        
+        let hour24 = hours;
+        if (period === 'AM' && hours === 12) {
+            hour24 = 0;
+        } else if (period === 'PM' && hours !== 12) {
+            hour24 = hours + 12;
+        }
+        
+        return new Date(0, 0, 0, hour24, minutes, seconds || 0);
     }
 }
