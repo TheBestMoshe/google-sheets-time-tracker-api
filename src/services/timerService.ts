@@ -113,7 +113,7 @@ export class TimerService {
             .sort((a, b) => b.localeCompare(a)); // Sort descending
 
         for (const sheetName of sortedSheets) {
-            const invoicedData = await this.googleSheetsService.getWorksheetData(sheetId, sheetName, 'A1');
+            const invoicedData = await this.googleSheetsService.getWorksheetData(sheetId, sheetName, 'B1');
             if (!invoicedData || !invoicedData[0] || invoicedData[0][0] !== 'TRUE') {
                 return sheetName;
             }
@@ -140,11 +140,16 @@ export class TimerService {
         const newSheetId = newSheet.sheetId;
 
         const requests = [
-            // Add "Invoiced" checkbox in cell A1
+            // Add "Invoiced" label in A1 and checkbox in B1
             {
                 updateCells: {
-                    rows: [{ values: [{ dataValidation: { condition: { type: 'BOOLEAN' } } }] }],
-                    fields: 'dataValidation',
+                    rows: [{ 
+                        values: [
+                            { userEnteredValue: { stringValue: 'Invoiced:' } },
+                            { dataValidation: { condition: { type: 'BOOLEAN' } } }
+                        ] 
+                    }],
+                    fields: 'userEnteredValue,dataValidation',
                     start: { sheetId: newSheetId, rowIndex: 0, columnIndex: 0 },
                 },
             },
