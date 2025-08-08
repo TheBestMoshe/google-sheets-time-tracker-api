@@ -202,7 +202,7 @@ export class TimerService {
             },
             {
                 repeatCell: {
-                    range: { sheetId: newSheetId, startColumnIndex: 1, endColumnIndex: 3 },
+                    range: { sheetId: newSheetId, startColumnIndex: 1, endColumnIndex: 3, startRowIndex: 5 },
                     cell: { userEnteredFormat: { numberFormat: { type: 'TIME', pattern: 'h:mm:ss AM/PM' } } },
                     fields: 'userEnteredFormat.numberFormat',
                 },
@@ -217,6 +217,22 @@ export class TimerService {
             {
                 repeatCell: {
                     range: { sheetId: newSheetId, startColumnIndex: 4, endColumnIndex: 5 },
+                    cell: { userEnteredFormat: { numberFormat: { type: 'CURRENCY', pattern: '$#,##0.00' } } },
+                    fields: 'userEnteredFormat.numberFormat',
+                },
+            },
+            // Format B2 (Total Hours) as duration
+            {
+                repeatCell: {
+                    range: { sheetId: newSheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 1, endColumnIndex: 2 },
+                    cell: { userEnteredFormat: { numberFormat: { type: 'TIME', pattern: '[h]:mm:ss' } } },
+                    fields: 'userEnteredFormat.numberFormat',
+                },
+            },
+            // Format B3 (Total Billable) as currency
+            {
+                repeatCell: {
+                    range: { sheetId: newSheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 1, endColumnIndex: 2 },
                     cell: { userEnteredFormat: { numberFormat: { type: 'CURRENCY', pattern: '$#,##0.00' } } },
                     fields: 'userEnteredFormat.numberFormat',
                 },
