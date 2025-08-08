@@ -11,6 +11,10 @@ const stopRequestSchema = z.object({
     sheetId: z.string(),
 });
 
+const durationRequestSchema = z.object({
+    sheetId: z.string(),
+});
+
 export default async function timerRoutes(req: Request, timerService: TimerService): Promise<Response> {
     const url = new URL(req.url);
     if (req.method === 'POST' && url.pathname === '/timer/start') {
@@ -29,6 +33,22 @@ export default async function timerRoutes(req: Request, timerService: TimerServi
             const body = await req.json();
             const { sheetId } = stopRequestSchema.parse(body);
             const result = await timerService.stopTimer(sheetId);
+            return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        } catch (error) {
+            return handleError(error);
+        }
+    }
+
+    if (req.method === 'GET' && url.pathname === '/timer/duration') {
+        try {
+            const sheetId = url.searchParams.get('sheetId');
+            if (!sheetId) {
+                return new Response(JSON.stringify({ error: 'sheetId query parameter is required' }), { 
+                    status: 400, 
+                    headers: { 'Content-Type': 'application/json' } 
+                });
+            }
+            const result = await timerService.getCurrentTimerDuration(sheetId);
             return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
         } catch (error) {
             return handleError(error);

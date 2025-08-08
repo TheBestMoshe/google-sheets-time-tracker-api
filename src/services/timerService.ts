@@ -439,4 +439,54 @@ export class TimerService {
         
         return new Date(0, 0, 0, hour24, minutes, seconds || 0);
     }
+
+    async getCurrentTimerDuration(sheetId: string): Promise<{ running: boolean; duration?: string; startTime?: string }> {
+        const config = await this.getConfig(sheetId);
+        const timezone = config['Timezone'] || 'UTC';
+        
+        const currentSheet = await this.getCurrentSheet(sheetId);
+        if (!currentSheet) {
+            return { running: false };
+        }
+
+        const activeTimer = await this.findActiveTimerRow(sheetId, currentSheet);
+        if (!activeTimer) {
+            return { running: false };
+        }
+
+        const startTimeString = activeTimer.row[1];
+        const startDateString = activeTimer.row[0];
+        
+        // Parse the start time as a full datetime
+        const startTime = this.parse12HourTime(startTimeString);
+        
+        // Get current time in the configured timezone
+        const now = this.getDateInTimezone(new Date(), timezone);
+        const currentTime = new Date(0, 0, 0, now.getHours(), now.getMinutes(), now.getSeconds());
+        
+        // Calculate duration
+        let durationMs = currentTime.getTime() - startTime.getTime();
+        
+        // Handle case where timer crosses midnight
+        if (durationMs < 0) {
+            // Add 24 hours if the current time is before start time (timer crossed midnight)
+            durationMs += 24 * 60 * 60 * 1000;
+        }
+
+        const seconds = Math.floor((durationMs / 1000) % 60);
+        const minutes = Math.floor((durationMs / (1000 * 60)) % 60);
+        const hours = Math.floor((durationMs / (1000 * 60 * 60)));
+
+        const duration = [
+            hours.toString().padStart(2, '0'),
+            minutes.toString().padStart(2, '0'),
+            seconds.toString().padStart(2, '0'),
+        ].join(':');
+
+        return {
+            running: true,
+            duration,
+            startTime: startTimeString
+        };
+    }
 }
